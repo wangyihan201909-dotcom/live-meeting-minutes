@@ -1,0 +1,31 @@
+# 本程序依赖
+websockets>=12.0
+httpx>=0.27
+fastapi>=0.110
+uvicorn>=0.27
+pydantic>=2.6
+numpy>=1.24
+
+# 采集系统声音必须用它：sounddevice 的 WasapiSettings 不提供 loopback 参数，
+# PyAudioWPatch 是专门为 WASAPI loopback 打补丁的 PyAudio 分支
+PyAudioWPatch>=0.2.12
+
+# 从 ModelScope 下载模型（国内直连 HuggingFace 和 hf-mirror 都不通）
+modelscope
+
+# ---------------------------------------------------------------------------
+# 转写服务和 CUDA 版 torch 不在这里装，顺序不能错，见 SETUP.md：
+#
+#   1) pip install "whisperlivekit[qwen3-streaming]" -i <国内镜像>
+#   2) pip uninstall -y torch torchaudio
+#   3) pip install torch==2.13.0 torchaudio --index-url https://download.pytorch.org/whl/cu130
+#
+# 为什么要卸了重装：国内 PyPI 镜像默认给的是纯 CPU 轮子（torch==2.13.0+cpu），
+# 装上去 whisperlivekit 会打印 "Accelerator: CPU only"，显卡完全不参与。
+# 而直接 pip install 覆盖不掉——pip 只比对版本号 2.13.0，不区分 +cpu 和 +cu130，
+# 会报 "Requirement already satisfied" 跳过。必须先 uninstall。
+#
+# 为什么是 cu130：5070 是 Blackwell (sm_120)，需要 cu128 以上；
+# 但 cu128 索引最高只到 torch 2.11.0，cu129 只到 2.9.0，
+# 只有 cu130 有 2.13.0，与 whisperlivekit 期望的版本一致。
+# 清华的 pytorch-wheels 镜像这几个路径都是 404，官方源直连反而通畅。

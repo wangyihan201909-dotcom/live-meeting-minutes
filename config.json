@@ -1,0 +1,40 @@
+{
+  "network": {
+    "_说明": "实测 hf-mirror.com 从这台机器连不通，所以语音模型改为从 ModelScope 手动下到本地，由 asr.model_path 指定，不再依赖任何 HF 访问。这里保留镜像地址仅作兜底。",
+    "hf_endpoint": "https://hf-mirror.com"
+  },
+  "audio": {
+    "device": 10,
+    "loopback": true
+  },
+  "asr": {
+    "manage": false,
+    "binary": "wlk",
+    "backend": "qwen3-streaming",
+    "language": "zh",
+    "port": 8000,
+    "health_path": "/",
+    "_model_path说明": "指向从 ModelScope 下好的本地目录，避免启动时去连 HuggingFace。留空则走网络下载。",
+    "model_path": "models/Qwen3-ASR-0.6B",
+    "extra_args": []
+  },
+  "llm": {
+    "_说明": "manage=false 表示用 LM Studio 等外部服务，我们只检查它在不在。LM Studio 默认端口 1234，需在其 Developer 页开启 Local Server。改成 true 则由本程序启动 llama-server，此时 port 用 8080。",
+    "manage": false,
+    "port": 1234,
+    "health_path": "/v1/models",
+    "model_name": "minicpm5-2b",
+    "binary": "llama-server",
+    "model_path": "models/Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "n_cpu_moe": 32,
+    "ctx": 8192,
+    "extra_args": []
+  },
+  "summary": {
+    "min_chars": 60,
+    "max_wait": 20,
+    "max_pending": 2,
+    "overview_every": 4
+  },
+  "out": "live_minutes.md"
+}

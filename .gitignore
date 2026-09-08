@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行产物：含会议实际内容，绝不入库
+live_minutes.md
+live_minutes.md.tmp
+raw.txt
+*.wav
+
+# 模型权重
+*.gguf
+models/
