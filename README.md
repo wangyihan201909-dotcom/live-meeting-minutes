@@ -60,13 +60,15 @@ WhisperLiveKit **每个 WebSocket 连接是独立会话，服务端不广播转�
 
 且必须走 **WASAPI loopback 采系统输出**——只采麦克风的话只能录到自己说话，别人的发言全丢，纪要就没意义了。
 
-### 4. 选 MoE，不选低比特稠密模型
+### 4. 宁可换小模型，也不要低比特的大稠密模型
 
 8GB 显存下的直觉是"把模型量化得更狠一点"，这是错的。
 
 稠密模型每生成一个 token 都要把全部权重过一遍。Qwen3.8-27B 的 Q4_K_M 是 17GB，塞不进 8GB 显存，大部分在内存里，每个 token 都得从内存搬一遍——被带宽焊死，实测 5-6 tok/s。降到 3bit 是 12-13GB，**仍然塞不进 8GB**，还在搬，所以治不好，还白白搭上了 JSON 指令遵循能力（这条流水线唯一依赖的能力）。
 
-MoE 可以**拆开放**：注意力、路由器、共享专家留显存，256 个路由专家扔内存交给 CPU，每 token 只激活 8 个。Qwen3.6-35B-A3B 总量更大（18GB），但每 token 只碰约 0.5GB 专家权重。**更大的模型反而更快。**
+出路有两条，都试过了。一条是 **MoE**：注意力、路由器、共享专家留显存，路由专家扔内存交给 CPU，每 token 只激活一小部分——Qwen3.6-35B-A3B 总量更大（18GB）却更快。但 8GB 卡上它和语音模型抢不过，可用内存被压到 0.8GB。
+
+另一条是**直接换小模型**，最后走的是这条。这个任务是 schema 约束下的结构化抽取，不吃推理深度：模型从 35B 降到 2B，一轮从 18.4 秒降到 2.6 秒，分类和 `owner` 填充的正确性没有可见损失。代价是决议识别变弱（见 [SETUP.md](SETUP.md) 的选型经过）。**先想清楚任务吃不吃推理深度，再决定省在哪。**
 
 ### 5. 显存优先给 ASR
 
@@ -78,14 +80,17 @@ MoE 可以**拆开放**：注意力、路由器、共享专家留显存，256 �
 
 开发机：RTX 5070 Laptop (8GB) + Ryzen AI 9 HX 370 + 32GB RAM + Windows
 
+两个模型同时加载、整条流水线跑起来时的实测占用（`nvidia-smi` / 任务管理器）：
+
 | 项目 | 显存 |
 |---|---|
-| Windows 桌面 | ~0.6 GB |
-| Qwen3-ASR-0.6B (fp16 + windowed 激活) | ~2.0–2.5 GB |
-| LLM 的注意力 / 路由器 / 共享专家 / KV | ~4.5–5 GB |
-| 路由专家 (~16 GB) → 系统内存 | 0 |
+| 显存总量 | 8151 MiB |
+| Qwen3-ASR-0.6B + MiniCPM5-2B (Q8_0, ctx 8192) + Windows 桌面 | 5159 MiB |
+| **余量** | **2733 MiB** |
 
-内存：16GB 专家 + Windows 约 5GB + 会议软件。32GB 够用但不宽裕，开会时别挂一堆 Chrome。
+内存 32GB，同时跑两个模型 + 浏览器时余 4.7 GB。够用但不宽裕，开会时别挂一堆 Chrome。
+
+> 换回 4B 或更大的模型时，显存余量会迅速见底——语音模型那 2–2.5 GB 是不能动的（见下条）。
 
 ---
 
@@ -101,7 +106,7 @@ pip install "whisperlivekit[qwen3-streaming]"
 
 llama.cpp：5070 是 Blackwell (sm_120)，**必须用 CUDA 12.8 以上构建的版本**，老的预编译包不认这张卡。从 [ggml-org/llama.cpp releases](https://github.com/ggml-org/llama.cpp/releases) 取。
 
-模型：[unsloth/Qwen3.6-35B-A3B-GGUF](https://huggingface.co/unsloth) 的 Q4_K_M，约 18GB。
+摘要模型：[OpenBMB/MiniCPM5-2B-GGUF](https://www.modelscope.cn/models/OpenBMB/MiniCPM5-2B-GGUF) 的 Q8_0，2.68GB。配置里对应 `llm.model_name = "minicpm5-2b"`。
 
 ---
 

@@ -426,7 +426,7 @@ async def main() -> int:
                     help="WhisperLiveKit WebSocket 地址，服务端需带 --pcm-input")
     ap.add_argument("--llm-url", default="http://127.0.0.1:8080/v1",
                     help="OpenAI 兼容端点。llama-server 默认 8080，Ollama 是 11434")
-    ap.add_argument("--llm-model", default="qwen3.6-35b-a3b",
+    ap.add_argument("--llm-model", default="minicpm5-2b",
                     help="本地模型名，需与推理服务里注册的名字一致")
     ap.add_argument("--out", default="live_minutes.md", help="纪要输出文件")
     ap.add_argument("--transcript", default=None, help="可选：同时落地全量转写")

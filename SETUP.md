@@ -10,25 +10,27 @@
 
 不需要装 llama.cpp——llama.cpp 就在 LM Studio 内部，它自带 OpenAI 兼容服务。
 
-**模型已经下好了**：`Qwen3.6-35B-A3B-UD-IQ4_XS.gguf`（16.51 GB，已校验），就放在 LM Studio 的模型目录里。
-
-**已经配好并实测通过了。** 用的是 **Qwen3.5-4B Q6_K**：
-
-```powershell
-& "$env:USERPROFILE\.lmstudio\bin\lms.exe" load qwen3.5-4b -c 8192 --gpu max --parallel 1 -y
-```
+**当前用的是 MiniCPM5-2B Q8_0**（2.68 GB），`config.json` 里 `llm.model_name` 对应的就是 `minicpm5-2b`。两条命令：
 
 ```powershell
 & "$env:USERPROFILE\.lmstudio\bin\lms.exe" server start --port 1234
 ```
 
-也可以在 GUI 里做：Developer 标签页 → 加载 Qwen3.5-4B → 打开 Local Server（端口 1234）。
+```powershell
+& "$env:USERPROFILE\.lmstudio\bin\lms.exe" load minicpm5-2b -c 8192 --gpu max --parallel 1 -y
+```
+
+也可以在 GUI 里做：Developer 标签页 → 加载 MiniCPM5-2B → 打开 Local Server（端口 1234）。
 
 模型 id 不用手抄——程序启动时会自己查 `/v1/models`，配置里的名字对不上就用服务端实际加载的那个。
 
-### 为什么是 4B 而不是 35B
+> 这个兜底有个前提要知道：LM Studio 的 `/v1/models` 列的是**所有已下载**的模型，不只是当前加载的那个。名字对不上时程序取列表第一个，未必就是你加载的。所以配置里的名字还是尽量写对。
 
-35B MoE 也下好了（`Qwen3.6-35B-A3B-UD-IQ4_XS`），单独跑没问题，一轮 18.4 秒。**但它和语音模型共存不了**，实测数字：
+### 选型经过：35B → 4B → 2B
+
+一路降下来的，每一步都有实测支撑。这个任务是 schema 约束下的结构化抽取，不吃推理深度，所以小模型的代价比直觉中小得多。
+
+**35B 装不下。** `Qwen3.6-35B-A3B-UD-IQ4_XS` 单独跑没问题，一轮 18.4 秒，但它和语音模型共存不了：
 
 | 配置 | 可用内存 |
 |---|---|
@@ -36,37 +38,35 @@
 | 35B（parallel 1, ctx 4096, gpu 0.3） | **0.8 GB** |
 | 4B + 语音模型同时运行 | **8.7 GB** |
 
-显存只有 8GB，语音模型要占一部分，所以 35B 的 16.5GB 里最多约 5GB 能上显卡，剩下 11.5GB 必须压内存，加上开销共约 16.3GB。把 4B 卸掉也只能腾出 13.2GB，还差 3GB——这还没算会议软件。
+显存只有 8GB，语音模型要占一部分，所以 35B 的 16.5GB 里最多约 5GB 能上显卡，剩下 11.5GB 必须压内存，加上开销共约 16.3GB。内存塞满的后果不是「慢一点」：实测吞吐从 12 tok/s 掉到 **0.53 tok/s**，LM Studio 里发条消息就崩。
 
-内存塞满的后果不是「慢一点」：实测吞吐从 12 tok/s 掉到 **0.53 tok/s**，LM Studio 里发条消息就崩。
+**4B 反而更快**（一轮 10.7 秒 vs 18.4 秒），因为它整个在显存里跑，不用每个 token 都从内存搬权重。
 
-4B 反而更快（一轮 10.7 秒 vs 18.4 秒），因为它整个在显存里跑，不用每个 token 都从内存搬权重。抽取和去重质量没有可见差距——这个任务是 schema 约束下的结构化抽取，不吃推理深度。
+**2B 又快了 4 倍。** MiniCPM5-2B 一轮 **2.6 秒**（抽取 1.4s + 合并 0.7s + 概述 0.4s）。摘要模型持续满载时平均每次抽取 1.2 秒，此时两个模型同时在卡上，仍余 4.7 GB 内存 / 2.7 GB 显存。
 
-> 量化选 Q6_K 而不是 Q4：模型本身已经小了，就别再叠加激进量化，那是把两种质量损失乘在一起。3.28GB 对 8GB 显存完全放得下。
+质量上，抽取和归类没问题——五类要点分类正确，`owner` 能正确填到人名。**但它会漏 `decision`**：「行，那这样定了，我们下周三先灰度百分之十」这种明确拍板，它倾向于揉进相邻的 `action` 条目，而不单独记一条决议。合并去重也偶有瑕疵：同一批要点重复送入时，个别条目会判成 `add` 而非 `merge`，产生重复。
+
+> 以拍板决策为主的会议，建议换回 `qwen3.5-4b`（Q6_K，3.53 GB）——改 `config.json` 里 `llm.model_name` 一行即可。以记待办和风险为主的，2B 够用且快得多。
+>
+> 量化选 Q8_0 / Q6_K 而不是 Q4：模型本身已经小了，别再叠加激进量化，那是把两种质量损失乘在一起。两三个 GB 对 8GB 显存完全放得下。
 >
 > `--parallel 1` 也别省。LM Studio 默认开 4 个并行槽位，每个都要独立 KV 缓存，而这条流水线同一时刻只发一个请求。
 
-### 关于速度
+### 下载模型
 
-你现在这个 27B 是**稠密**模型，15.7GB 压在 8GB 显存上，大部分权重在内存里，每生成一个 token 都要搬一遍——这就是你觉得慢的原因。降到 3bit 是 12-13GB，**仍然塞不进 8GB**，治标都算不上。
+从 ModelScope 下，国内快得多（实测 30 MB/s）。**别在 LM Studio 里搜索下载，它走 HuggingFace。**
 
-解法是换 **MoE**（已经下好了）：总参数更大，但每个 token 只激活其中一小部分，只碰约 0.5GB 权重，预期快一个数量级。
+```powershell
+.\.venv\Scripts\modelscope.exe download --model OpenBMB/MiniCPM5-2B-GGUF --include "*Q8_0*" --local_dir "$env:USERPROFILE\.lmstudio\models\OpenBMB\MiniCPM5-2B-GGUF"
+```
 
-选的是 **UD-IQ4_XS（16.5GB）**而不是 Q4_K_M（20.6GB）：你只有 32GB 内存，还要同时跑会议软件，Q4_K_M 会把内存吃满。IQ4_XS 同样是 4bit，unsloth 动态量化保留关键层精度，质量接近但省 4GB。
+下到 LM Studio 的模型目录下（`模型目录\<发布方>\<仓库名>\`），它会自动索引，`lms ls` 里能看到就说明认出来了，列出的那个名字就是 `model_name` 该填的值。
 
-加载时右侧设置：**GPU Offload** 滑杆尽量拉高；如果有「把 MoE 专家权重放到 CPU」这类开关（*Force MoE expert weights onto CPU*），打开它。
-
-> 重下或换量化的话用 ModelScope，国内快得多（实测 30 MB/s）：
+> 用 `curl.exe` 直接下也行，但 Windows 自带的 curl 走 Schannel，经代理时常报 `CRYPT_E_NO_REVOCATION_CHECK`（查不到证书吊销列表）。加 `--ssl-no-revoke` 跳过吊销检查，再用 `certutil -hashfile <文件> SHA256` 比对官方哈希把这层保障补回来。加 `-C -` 可以断点续传。
 >
-> ```powershell
-> .\.venv\Scripts\modelscope.exe download --model unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-IQ4_XS*" --local_dir "$env:USERPROFILE\.lmstudio\models\unsloth\Qwen3.6-35B-A3B-GGUF"
-> ```
->
-> 仓库页：[unsloth/Qwen3.6-35B-A3B-GGUF](https://www.modelscope.cn/models/unsloth/Qwen3.6-35B-A3B-GGUF)。别在 LM Studio 里搜索下载，它走 HuggingFace。
+> 注意 PowerShell 里必须写 `curl.exe`——裸写 `curl` 是 `Invoke-WebRequest` 的别名，不认 `-L -o` 这些参数。
 
-加载时在右侧设置里：**GPU Offload** 滑杆尽量拉高；如果你的版本有「把 MoE 专家权重放到 CPU」这类开关（名字类似 *Force MoE expert weights onto CPU*），打开它。
-
-> 建议顺序：**先用现有的 27B 把整条链路跑通**，确认能出纪要了，再换 MoE 提速。别一上来就下 18GB。
+**换更大的模型前先想清楚 8GB 显存这个硬约束。** 稠密模型每生成一个 token 都要把全部权重过一遍，塞不进显存就得从内存搬，会被带宽焊死。MoE 可以拆开放——注意力、路由器、共享专家留显存，路由专家扔内存交给 CPU，每 token 只激活一小部分；加载时把 **GPU Offload** 拉高，有 *Force MoE expert weights onto CPU* 这类开关就打开。
 
 ---
 
