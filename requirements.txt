@@ -1,5 +1,11 @@
 # 本程序依赖
 websockets>=12.0
+
+# 桌面应用（desktop.py）。QtMultimedia 用来回放归档录音，
+# 带进度条、可拖拽、可从转写的某一句跳到录音对应位置。
+PySide6>=6.6
+
+# 网页控制台（app.py）——桌面版之外的备选入口，两者共用 engine.py
 httpx>=0.27
 fastapi>=0.110
 uvicorn>=0.27

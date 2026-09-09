@@ -17,7 +17,7 @@ if errorlevel 1 goto nopython
 :activate
 call .venv\Scripts\activate.bat
 
-python -c "import fastapi" >nul 2>&1
+python -c "import PySide6" >nul 2>&1
 if errorlevel 1 goto install
 python -c "import pyaudiowpatch" >nul 2>&1
 if errorlevel 1 goto install
@@ -44,11 +44,11 @@ goto end
 
 :run
 echo.
-echo Starting. The console will open in your browser at http://127.0.0.1:8500
+echo Starting the desktop app.
 echo Make sure LM Studio Local Server is running on port 1234.
-echo Close this window to exit.
+echo Close the app window to exit. (Web console fallback: python app.py)
 echo.
-python app.py
+python desktop.py
 goto end
 
 :nopython

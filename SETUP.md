@@ -132,9 +132,9 @@ modelscope download --model Qwen/Qwen3-ASR-0.6B --local_dir .\models\Qwen3-ASR-0
 
 ## 三、开会
 
-**双击 `启动.bat`**，浏览器会自动打开控制台。
+**双击 `启动.bat`**，桌面应用会打开（`启动.bat` 会自动装缺的依赖，PySide6 约 200MB，第一次要等几分钟）。
 
-页面上：
+窗口上：
 
 1. **「声音来源」下拉框**选一个带 🔊 的
 
@@ -164,8 +164,9 @@ modelscope download --model Qwen/Qwen3-ASR-0.6B --local_dir .\models\Qwen3-ASR-0
 右上角**「历史」**进归档：
 
 - 搜索框搜的是标题 + **转写原文 + 纪要内容**，记得某人说过某个词就能翻出那场会
-- 点开可以**回放录音**，在「纪要 / 转写原文」之间切换
-- 点标题可改名，右侧可删除
+- 点开可以**回放录音**（带进度条，可拖拽），在「纪要 / 转写原文」之间切换
+- **双击转写里的某一句，录音直接跳到那句的时间点** —— 复盘时最好用的一个功能
+- 「改标题」可改名，「删除」连录音一起删
 - 三个导出按钮：`.md`（纪要）、`.txt`（带时间戳的转写）、`.json`（全部）
 
 `live_minutes.md` 仍然实时刷新，适合拿 Markdown 编辑器开着当实时预览；会后要存档就用
@@ -180,6 +181,7 @@ modelscope download --model Qwen/Qwen3-ASR-0.6B --local_dir .\models\Qwen3-ASR-0
 | 现象 | 原因和处理 |
 |---|---|
 | 双击后闪退 | 没装 Python。装 3.11+，安装时勾选 "Add to PATH" |
+| 窗口打不开 / PySide6 报错 | 单独装一次：`pip install PySide6 -i https://pypi.tuna.tsinghua.edu.cn/simple`。实在装不上就先用网页版：`python app.py`，功能一致 |
 | 「连不上 http://127.0.0.1:1234/v1/models」 | LM Studio 没开，或模型没加载，或 Local Server 开关没打开 |
 | 「找不到可执行文件 wlk」 | 第二步的 whisperlivekit 没装进 `.venv` |
 | 左边一直没文字 | 声音没采到。确认选的是 🔊 那个，确认喇叭真的在响 |
