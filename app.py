@@ -48,8 +48,9 @@ def load_config() -> dict:
 
 def save_config(cfg: dict) -> None:
     tmp = CONFIG_PATH.with_suffix(".json.tmp")
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(cfg, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")          # 少了末尾换行，页面上每改一次配置就多一条无谓的 git diff
     os.replace(tmp, CONFIG_PATH)
 
 
