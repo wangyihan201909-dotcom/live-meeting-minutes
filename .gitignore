@@ -4,6 +4,7 @@ __pycache__/
 venv/
 
 # 运行产物：含会议实际内容，绝不入库
+meetings/
 live_minutes.md
 live_minutes.md.tmp
 raw.txt

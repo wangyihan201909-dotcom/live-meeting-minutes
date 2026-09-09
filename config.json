@@ -5,7 +5,9 @@
   },
   "audio": {
     "device": 10,
-    "loopback": true
+    "loopback": true,
+    "_auto_gain说明": "麦克风电平偏低时自动拉起来。实测笔记本麦克风阵列采到的语音峰值只有满幅 5%-22%，转写会碎成单字；加增益后恢复成完整句子。loopback 本来就接近满幅，增益会自动停在 1 倍，开着没有副作用。",
+    "auto_gain": true
   },
   "asr": {
     "manage": false,
@@ -36,5 +38,6 @@
     "max_pending": 2,
     "overview_every": 4
   },
-  "out": "live_minutes.md"
+  "out": "live_minutes.md",
+  "_out说明": "实时预览用的单文件；每场会议另外完整归档到 meetings/<id>/。"
 }

@@ -393,11 +393,12 @@ async def put_chunk(queue: asyncio.Queue, text: str, max_pending: int, on_log=No
     await queue.put(text)
 
 
-def write_markdown(minutes: Minutes, path: str) -> None:
+def render_markdown(minutes: Minutes, title: str = "实时会议纪要",
+                    subtitle: str | None = None) -> str:
     lines = [
-        "# 实时会议纪要",
+        f"# {title}",
         "",
-        f"_更新于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_",
+        subtitle or f"_更新于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_",
         "",
     ]
     if minutes.overview:
@@ -412,8 +413,11 @@ def write_markdown(minutes: Minutes, path: str) -> None:
             mark = " ⭐" if item.hits >= 3 else ""
             lines.append(f"- {owner}{item.text}{mark}")
         lines.append("")
+    return "\n".join(lines)
 
+
+def write_markdown(minutes: Minutes, path: str) -> None:
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(lines))
+        fh.write(render_markdown(minutes))
     os.replace(tmp, path)        # 原子替换，实时预览不会读到半截文件
